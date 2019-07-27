@@ -20,6 +20,7 @@ class ProcessedImageTransform(abc.ABC):
 
     def _show_landmarks(self, img, landmarks):
         img_clone = img.copy()
+        # CR: you used this array more than one - put it in a const. also, isn't that functionality a code duplication?
         for i in [1, 5, 9, 13, 17]:
             for j in range(3):
                 cv2.line(img_clone,
@@ -76,8 +77,8 @@ class SteeredEdgeTransform(ProcessedImageTransform):
         direction = target - source
         # flip since image is in flipped coordinates
         direction *= torch.from_numpy(np.array([1.0, -1.0]))
-        direction *= 1 / direction.norm()
-
+        direction *= 1 / direction.norm() #CR: why not just /= direction.norm()?
+        #CR: what is 5?, put the array in a const that will tell me something about it. I don't understand where those numbers come from.
         if kernel_size == 5:
             sobely = torch.from_numpy(np.array([
                 [2., 1., 0., -1., -2.],
