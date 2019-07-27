@@ -4,6 +4,7 @@ import cv2
 
 
 class ProcessedImage(object):
+#     CR: doc? why do you have a class without functionality?
     def __init__(self, row):
         self.row = int(row)
 
@@ -15,6 +16,7 @@ class ProcessedImage(object):
             line = csv.readlines()[self.row]
             line_values = line.split(',')
         image_name = line_values[0].split('_', 1)
+        # CR: use pathlib - this way it will work no matter what os u are running on
         full_image_path = self._images_path + image_name[0] + '\\' + image_name[1]
         landmarks = np.array(line_values[1:], dtype=float)
 
