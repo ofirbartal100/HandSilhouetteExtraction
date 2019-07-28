@@ -8,9 +8,10 @@ import matplotlib.pyplot as plt
 class ProcessedImagePlotter(object):
     def __init__(self, save_flag=False):
         self.save_flag = save_flag
-        pass
+        pass #CR: ?
 
     def plot_single(self, processedImage, transform=None):
+        # CR: doc? what is processedImage? what is transform?
         plt.clf()
         if transform:
             transformed_image = transform.transform(processedImage)
@@ -26,7 +27,7 @@ class ProcessedImagePlotter(object):
 
         plt.clf()
         fig, axes = plt.subplots(len(transforms))
-        i = 0
+        i = 0 # CR: not pythonic. use enumerate
         for t in transforms:
             transformed_image = t.transform(processedImage)
             axes[i].imshow(transformed_image, cmap='gray')
@@ -39,7 +40,7 @@ class ProcessedImagePlotter(object):
     def plot_multy_grid(self, processedImages, transforms):
         plt.clf()
         fig, axes = plt.subplots(len(transforms), len(processedImages))
-        i = 0
+        i = 0 # CR: enumerate for both i,j
         for t in transforms:
             j = 0
             for pi in processedImages:
