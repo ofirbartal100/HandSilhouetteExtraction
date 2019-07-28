@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 class ProcessedImagePlotter(object):
     def __init__(self, save_flag=False):
         self.save_flag = save_flag
-        pass #CR: ?
 
     def plot_single(self, processedImage, transform=None):
         # CR: doc? what is processedImage? what is transform?
@@ -27,11 +26,10 @@ class ProcessedImagePlotter(object):
 
         plt.clf()
         fig, axes = plt.subplots(len(transforms))
-        i = 0 # CR: not pythonic. use enumerate
-        for t in transforms:
+
+        for i, t in enumerate(transforms):
             transformed_image = t.transform(processedImage)
             axes[i].imshow(transformed_image, cmap='gray')
-            i = i + 1
 
         if self.save_flag:
             plt.savefig("transformed_single_grid", type="jpeg")
@@ -40,28 +38,14 @@ class ProcessedImagePlotter(object):
     def plot_multy_grid(self, processedImages, transforms):
         plt.clf()
         fig, axes = plt.subplots(len(transforms), len(processedImages))
-        i = 0 # CR: enumerate for both i,j
-        for t in transforms:
-            j = 0
-            for pi in processedImages:
+        for i, t in enumerate(transforms):
+            for j, pi in enumerate(processedImages):
                 transformed_image = t.transform(pi)
                 if len(transforms) == 1:
                     axes[j].imshow(transformed_image, cmap='gray')
                 else:
                     axes[i, j].imshow(transformed_image, cmap='gray')
-                j = j + 1
-            i = i + 1
 
         if self.save_flag:
             plt.savefig("transformed_multy_grid", type="jpeg")
         plt.show()
-
-
-def id_transform(img, landmarks):
-    img_clone = img.copy()
-    for i in [1, 5, 9, 13, 17]:
-        for j in range(3):
-            cv2.line(img_clone,
-                     (int(landmarks[i + j][0].item()), int(landmarks[i + j][1].item())),
-                     (int(landmarks[i + j + 1][0].item()), int(landmarks[i + j + 1][1].item())), (255, 0, 0), 2)
-    return img_clone

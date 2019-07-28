@@ -3,6 +3,8 @@ import torch
 import cv2
 import abc
 
+from processedImage import ProcessedImage
+
 
 class ProcessedImageTransform(abc.ABC):
     def __init__(self, show_landmarks_flag):
@@ -20,12 +22,8 @@ class ProcessedImageTransform(abc.ABC):
 
     def _show_landmarks(self, img, landmarks):
         img_clone = img.copy()
-        # CR: you used this array more than one - put it in a const. also, isn't that functionality a code duplication?
-        for i in [1, 5, 9, 13, 17]:
-            for j in range(3):
-                cv2.line(img_clone,
-                         (int(landmarks[i + j][0].item()), int(landmarks[i + j][1].item())),
-                         (int(landmarks[i + j + 1][0].item()), int(landmarks[i + j + 1][1].item())), (255, 0, 0), 2)
+        for source_x, source_y, target_x, target_y in ProcessedImage.get_fingers_joints(landmarks):
+            cv2.line(img_clone, (source_x, source_y), (target_x, target_y), (255, 0, 0), 2)
         return img_clone
 
 
@@ -55,21 +53,22 @@ class SteeredEdgeTransform(ProcessedImageTransform):
 
     def _transform(self, processedImage):
         transformed_img = np.zeros(processedImage.img.shape[:2], np.uint8)
-        for i in [1, 5, 9, 13, 17]:
-            for j in range(3):
-                hist_mask = Mask(processedImage.img.shape[:2], processedImage.landmarks[i + j], self._mask_size)
+        for source_x, source_y, target_x, target_y in ProcessedImage.get_fingers_joints(processedImage.landmarks):
+            hist_mask = Mask(processedImage.img.shape[:2], [source_x, source_y], self._mask_size)
 
-                kernel_down, kernel_up = self.create_kernel(processedImage.landmarks[i + j],
-                                                            processedImage.landmarks[i + j + 1], self._k_size)
+            kernel_down, kernel_up = self.create_kernel(
+                torch.Tensor([source_x, source_y]).double(),
+                torch.Tensor([target_x, target_y]).double(),
+                self._k_size)
 
-                filtered_down = cv2.filter2D(processedImage.img, cv2.CV_8U, kernel_down)
-                filtered_up = cv2.filter2D(processedImage.img, cv2.CV_8U, kernel_up)
+            filtered_down = cv2.filter2D(processedImage.img, cv2.CV_8U, kernel_down)
+            filtered_up = cv2.filter2D(processedImage.img, cv2.CV_8U, kernel_up)
 
-                filtered_down = hist_mask(filtered_down)
-                filtered_up = hist_mask(filtered_up)
+            filtered_down = hist_mask(filtered_down)
+            filtered_up = hist_mask(filtered_up)
 
-                transformed_img = cv2.bitwise_or(transformed_img, filtered_down)
-                transformed_img = cv2.bitwise_or(transformed_img, filtered_up)
+            transformed_img = cv2.bitwise_or(transformed_img, filtered_down)
+            transformed_img = cv2.bitwise_or(transformed_img, filtered_up)
 
         return transformed_img
 
@@ -77,27 +76,32 @@ class SteeredEdgeTransform(ProcessedImageTransform):
         direction = target - source
         # flip since image is in flipped coordinates
         direction *= torch.from_numpy(np.array([1.0, -1.0]))
-        direction *= 1 / direction.norm() #CR: why not just /= direction.norm()?
-        #CR: what is 5?, put the array in a const that will tell me something about it. I don't understand where those numbers come from.
+        direction /= direction.norm()
+
         if kernel_size == 5:
-            sobely = torch.from_numpy(np.array([
-                [2., 1., 0., -1., -2.],
-                [2., 1., 0., -1., -2.],
-                [4., 2., 0., -2., -4.],
-                [2., 1., 0., -1., -2.],
-                [2., 1., 0., -1., -2.],
-            ]))
+            sobely = SteeredEdgeTransform.sobely_5
         else:
-            sobely = torch.from_numpy(np.array([
-                [1., 0., -1.],
-                [2., 0., -2.],
-                [1., 0., -1.]
-            ]))
+            sobely = SteeredEdgeTransform.sobely_3
         sobelx = sobely.t()
 
         direction_filter = sobelx * direction[0] + sobely * direction[1]
         return direction_filter.numpy(), direction_filter.numpy() * -1
 
+    # 5x5 sobel y filter
+    sobely_5 = torch.from_numpy(np.array([
+        [2., 1., 0., -1., -2.],
+        [2., 1., 0., -1., -2.],
+        [4., 2., 0., -2., -4.],
+        [2., 1., 0., -1., -2.],
+        [2., 1., 0., -1., -2.],
+    ]))
+
+    # 3x3 sobel y filter
+    sobely_3 = torch.from_numpy(np.array([
+        [1., 0., -1.],
+        [2., 0., -2.],
+        [1., 0., -1.]
+    ]))
 
 class Mask(object):
     def __init__(self, shape, point, mask_size):
